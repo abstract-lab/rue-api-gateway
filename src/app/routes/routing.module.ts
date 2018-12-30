@@ -1,8 +1,8 @@
 import { Module } from '@nestjs/common';
 
-import { SharedModule } from '../shared/shared.module';
 import { RoutingService } from './routing.service';
 import { RoutingController } from './routing.controller';
+import { SharedModule } from '../shared/shared.module';
 
 @Module({
   imports: [ SharedModule ],

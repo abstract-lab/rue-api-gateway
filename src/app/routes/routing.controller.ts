@@ -1,4 +1,4 @@
-import { Controller, Get, Res, HttpStatus } from '@nestjs/common';
+import { Controller, Get, Res, HttpStatus, HttpException } from '@nestjs/common';
 import { Response } from 'express';
 
 import { RoutingService } from './routing.service';
@@ -8,7 +8,11 @@ export class RoutingController {
     constructor(private service: RoutingService) { }
 
     @Get('/info')
-    public getInfo(@Res() response: Response) {
-        return this.service.infoRequest2();
+    public async getInfo(@Res() response: Response) {
+        try {
+            response.send(await this.service.infoRequest()).status(HttpStatus.OK);
+        } catch (e) {
+            throw new HttpException(e, HttpStatus.INTERNAL_SERVER_ERROR);
+        }
     }
 }
