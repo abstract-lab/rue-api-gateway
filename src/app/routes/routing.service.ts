@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 
 import { RabbitMessageQueue } from '../shared/mq/mq.service';
-import { Patterns } from '../utils/patterns';
+import { Patterns, QueueNames } from '../utils/patterns';
 import { LoggingService } from '../shared/logging/logging.service';
 
 @Injectable()
@@ -10,7 +10,9 @@ export class RoutingService {
 
     public async infoRequest(): Promise<boolean> {
         try {
-            return await this.mqService.publishMessage({ routingKey: Patterns.Info, content: 'info', options: {} });
+            return await this.mqService.publishMessage({ routingKey: Patterns.Info, content: {}, options: {
+                 replyTo: QueueNames.InfoReply,
+            } });
         } catch (e) {
             this.loggingService.getLogger().error(`Error sending info request: ${e}`);
             throw(e);

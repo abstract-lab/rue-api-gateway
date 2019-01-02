@@ -3,7 +3,7 @@ import * as amqp from 'amqplib';
 import * as winston from 'winston';
 
 import { Listener } from '../../listeners/listener';
-const GATEWAY_EXCHANGE_NAME = 'GatewayEvents';
+import * as Config from '../../config';
 
 @Injectable()
 export class RabbitMessageQueue {
@@ -14,7 +14,7 @@ export class RabbitMessageQueue {
     constructor(private options: any, private logger: winston.Logger) { }
 
     public async ensureInfrastructure(): Promise<void> {
-        await this.channel.assertExchange(GATEWAY_EXCHANGE_NAME, 'topic');
+        await this.channel.assertExchange(Config.GATEWAY_EXCHANGE_NAME, 'topic');
     }
 
     public async initializeConnection(): Promise<void> {
@@ -46,30 +46,45 @@ export class RabbitMessageQueue {
         });
     }
 
-    private delay(ms: number): Promise<void> {
-        return new Promise(resolve => setTimeout(resolve, ms));
-    }
-
     public async listenToQueue(listener: Listener): Promise<boolean> {
-        return new Promise<boolean>(async (resolve, reject) => {
-            const queueAssert = await this.channel.assertQueue(listener.queueName);
+        const queueAssert = await this.channel.assertQueue(listener.queueName);
 
-            if (queueAssert.queue) {
-                await this.channel.bindQueue(listener.queueName, this.options.exchange, listener.patternString);
-                this.channel.consume(listener.queueName, (async (msg: amqp.Message) => {
-                    const result = await listener.onMessageReceived(msg);
-                    result ? this.channel.ack(msg) : this.channel.nack(msg);
-                    resolve(result);
-                }));
-            } else {
-                reject();
-            }
-        });
+        if (queueAssert.queue) {
+            await this.channel.bindQueue(listener.queueName, listener.exchangeName, listener.patternString);
+            await this.channel.consume(listener.queueName, (async (msg: amqp.Message) => {
+                const result: boolean = await listener.onMessageReceived(msg);
+
+                if (result) {
+                    this.channel.ack(msg);
+                } else {
+                    this.channel.nack(msg);
+                }
+
+                return true;
+            }));
+        }
+
+        return false;
+
+        // return new Promise<boolean>(async (resolve, reject) => {
+        //     const queueAssert = await this.channel.assertQueue(listener.queueName);
+
+        //     if (queueAssert.queue) {
+        //         await this.channel.bindQueue(listener.queueName, listener.exchangeName, listener.patternString);
+        //         this.channel.consume(listener.queueName, (async (msg: amqp.Message) => {
+        //             const result = await listener.onMessageReceived(msg);
+        //             result ? this.channel.ack(msg) : this.channel.nack(msg);
+        //             resolve(result);
+        //         }));
+        //     } else {
+        //         reject();
+        //     }
+        // });
     }
 
     public async publishMessage(message: { routingKey: string, content: any, options: amqp.Options.Publish }): Promise<boolean> {
             try {
-                return await this.channel.publish(GATEWAY_EXCHANGE_NAME, message.routingKey,
+                return await this.channel.publish(Config.GATEWAY_EXCHANGE_NAME, message.routingKey,
                                 Buffer.from(JSON.stringify(message.content)), message.options);
 
             } catch (err) {
@@ -89,5 +104,9 @@ export class RabbitMessageQueue {
                 reject(err);
             }
         });
+    }
+
+    private delay(ms: number): Promise<void> {
+        return new Promise(resolve => setTimeout(resolve, ms));
     }
 }
