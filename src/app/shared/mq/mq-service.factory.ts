@@ -15,8 +15,5 @@ export const messageFactory = async (configManager: ConfigurationService, loggin
     options.retryTimeout = process.env.MQ_RETRY_TIMEOUT || config.mq.retryTimeout;
 
     const mq = new RabbitMessageQueue(options, logger);
-    await mq.initializeConnection();
-    await mq.ensureInfrastructure();
-
     return mq;
 };
